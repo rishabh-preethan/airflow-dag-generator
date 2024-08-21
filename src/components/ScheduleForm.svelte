@@ -1,32 +1,33 @@
 <script>
     import axios from 'axios'; // Import axios
 
-    // Dropdown values for cron format, starting from 0 and including '*'
-
     let promptText = "";
 
     async function submitSchedule() {
         console.log("Prompt:", promptText);
 
-        // Send the schedule and prompt to your backend
         const payload = {
-                        "prompt": promptText
-                        }
+            "prompt": promptText
+        };
 
-        console.log("payload json: ", payload);
+        console.log("Payload JSON:", payload);
 
         try {
-            const response = await axios.post('http://localhost:45000/generate_dag', payload, {
+            const response = await axios.post('http://127.0.0.1:45000/generate_dag', payload, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log('Success:', response.data);
+            console.log('Response Data:', response.data);
+            // Display response data in your application, e.g., update a state or an element
+            alert('Response received: ' + response.data.code); // Example of displaying response data
         } catch (error) {
             console.error('Error:', error.message || error);
+            alert('Error occurred: ' + (error.message || error));
         }
     }
 </script>
+
 
 <div class="schedule-form">
     <h2>Set Airflow DAG Schedule</h2>
