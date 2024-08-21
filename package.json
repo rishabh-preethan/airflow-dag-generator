@@ -1,0 +1,31 @@
+{
+	"name": "airflow-frontend",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^3.2.4",
+		"@sveltejs/kit": "^2.0.0",
+		"@sveltejs/vite-plugin-svelte": "^3.0.0",
+		"svelte": "^4.2.7",
+		"vite": "^5.0.3"
+	},
+	"type": "module",
+	"dependencies": {
+		"@codemirror/lang-javascript": "^6.2.2",
+		"@codemirror/lang-python": "^6.1.6",
+		"@monaco-editor/react": "^4.6.0",
+		"ace-builds": "^1.35.5",
+		"axios": "^1.7.4",
+		"codemirror": "^6.0.1",
+		"cors": "^2.8.5",
+		"express": "^4.19.2",
+		"http-proxy-middleware": "^3.0.0",
+		"svelte-codemirror-editor": "^1.4.0",
+		"svelte-preprocess": "^6.0.2"
+	}
+}
