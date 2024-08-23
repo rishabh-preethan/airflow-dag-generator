@@ -1,23 +1,23 @@
 <script>
-    import axios from 'axios'; // Import axios
+    import axios from 'axios';
 
     let promptText = "";
+    let dagName = "";  // Variable to store the DAG name
     let pyodide;
     let pyodideLoaded = false;
     let errorMessage = '';
     let code = '';
     let isLoading = false;
-    let syntaxCheckResult = ''; // Variable to store the result of syntax check
-    let showSyntaxCheckResult = false; // Flag to control visibility of syntax check result
+    let syntaxCheckResult = ''; 
+    let showSyntaxCheckResult = false;
 
     async function loadPyodide() {
         try {
-            // Load Pyodide
             if (!window.loadPyodide) {
                 throw new Error('Pyodide script not loaded');
             }
             pyodide = await window.loadPyodide();
-            await pyodide.loadPackage('micropip'); // To use micropip if needed
+            await pyodide.loadPackage('micropip'); 
             pyodideLoaded = true;
         } catch (error) {
             console.error('Error loading Pyodide:', error);
@@ -32,14 +32,20 @@
     }
 
     async function submitSchedule() {
-        console.log("Prompt:", promptText);
+        if (!dagName || /\s/.test(dagName)) {
+            errorMessage = 'DAG name is required and must be a single string without spaces.';
+            return;
+        }
+
+        // Append DAG name to the prompt
+        const modifiedPromptText = `${promptText}\nPlease name the DAG with this: ${dagName}`;
 
         const payload = {
-            "prompt": promptText
+            "prompt": modifiedPromptText
         };
 
-        console.log("Payload JSON:", payload);
-        isLoading = true; // Show spinner
+        console.log("Modified Payload JSON:", payload);
+        isLoading = true;
 
         try {
             const response = await axios.post('http://127.0.0.1:45000/generate_dag', payload, {
@@ -50,7 +56,6 @@
             console.log('Response Data:', response.data);
             code = response.data.code;
 
-            // Strip Markdown formatting if present
             code = code.replace(/```python/g, '').replace(/```/g, '').trim();
 
             if (pyodideLoaded) {
@@ -62,14 +67,13 @@
             console.error('Error:', error.message || error);
             errorMessage = 'Error occurred: ' + (error.message || error);
         } finally {
-            isLoading = false; // Hide spinner
+            isLoading = false;
         }
     }
 
     async function checkSyntax() {
         if (pyodideLoaded) {
             try {
-                // Check for syntax errors using ast module
                 const checkCode = `
 import ast
 
@@ -84,17 +88,46 @@ result = check_syntax('''${code}''')
 result
                 `;
                 const result = await pyodide.runPythonAsync(checkCode);
-                syntaxCheckResult = result; // Store the result
-                showSyntaxCheckResult = true; // Show syntax check result
-                console.log('Syntax Check Result:', result); // Debugging
+                syntaxCheckResult = result;
+                showSyntaxCheckResult = true;
+                console.log('Syntax Check Result:', result);
             } catch (error) {
                 syntaxCheckResult = 'Error in Python code: ' + error.message;
-                showSyntaxCheckResult = true; // Show syntax check result
-                console.error('Error in Python code:', error); // Debugging
+                showSyntaxCheckResult = true;
+                console.error('Error in Python code:', error);
             }
         } else {
             syntaxCheckResult = 'Pyodide is not loaded yet';
-            showSyntaxCheckResult = true; // Show syntax check result
+            showSyntaxCheckResult = true;
+        }
+    }
+
+    async function submitDAG() {
+        if (!dagName || /\s/.test(dagName)) {
+            alert('DAG name is required and must be a single string without spaces.');
+            return;
+        }
+
+        const payload = {
+            dag_name: dagName,
+            code: code
+        };
+
+        try {
+            const response = await axios.post('http://127.0.0.1:45000/upload_code', payload, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 200) {
+                alert("DAG submitted successfully!");
+            } else {
+                alert("Failed to submit DAG.");
+            }
+        } catch (error) {
+            console.error("Error:", error.message || error);
+            alert("Error occurred while submitting DAG: " + (error.message || error));
         }
     }
 
@@ -113,9 +146,14 @@ result
 <div class="container">
     <div class="schedule-form">
         <label class="prompt-label">
+            Prompt:
             <input type="text" bind:value={promptText} placeholder="Enter your prompt" />
         </label>
-        <button class="submit-button" on:click={submitSchedule} disabled={isLoading}>
+        <label class="dag-label">
+            DAG Name:
+            <input type="text" bind:value={dagName} placeholder="Enter DAG name" />
+        </label>
+        <button class="submit-button" on:click={submitSchedule} disabled={isLoading || !dagName || /\s/.test(dagName)}>
             {#if isLoading}
                 <span class="spinner"></span>
             {/if}
@@ -133,7 +171,8 @@ result
                 </div>
                 <textarea bind:value={code} rows="15" placeholder="Your code here..." on:scroll="{syncScroll}" />
             </div>
-            <button class="syntax-check-button" on:click={checkSyntax}>Is the DAG executable</button>
+            <button class="syntax-check-button" on:click={checkSyntax}>Test Code</button>
+            <button class="submit-dag-button" on:click={submitDAG}>Submit DAG</button>
         </div>
     {:else if errorMessage}
         <p>{errorMessage}</p>
@@ -161,29 +200,48 @@ result
 .schedule-form {
     display: flex;
     align-items: center;
-    gap: 1rem; /* Added gap to create space between input and button */
+    gap: 1rem;
     margin-bottom: 1rem;
 }
 
 .prompt-label {
-    flex: 1; /* Makes the input field take as much space as possible */
+    flex: 1;
     display: flex;
+    font-family: 'Poppins', sans-serif;
     flex-direction: column;
     gap: 0.5rem;
 }
 
 .prompt-label input {
-    width: 95%; /* Ensures the input field takes up the full width of its container */
+    width: 95%;
     padding: 0.5rem;
-    font-family: 'Poppins', sans-serif; /* Apply Poppins font */
+    font-family: 'Poppins', sans-serif;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 1rem; /* Adjust font size if needed */
+    font-size: 1rem;
 }
 
+.dag-label {
+    flex: 1;
+    display: flex;
+    font-family: 'Poppins', sans-serif;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dag-label input {
+    width: 95%;
+    padding: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+
 .submit-button {
-    padding: 0.5rem 1rem; /* Adjusted padding for better button size */
-    font-size: 0.875rem; /* Adjust font size for the button */
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
     background-color: #007bff;
     color: white;
     border: none;
@@ -191,8 +249,9 @@ result
     border-radius: 4px;
     display: flex;
     align-items: center;
-    font-family: 'Poppins', sans-serif; /* Apply Poppins to button text */
-    white-space: nowrap; /* Prevent text from wrapping */
+    font-family: 'Poppins', sans-serif;
+    white-space: nowrap;
+    margin-top: 30px;
 }
 
 .submit-button:hover {
@@ -263,7 +322,7 @@ textarea {
     margin-left: 60px;
 }
 
-.syntax-check-button {
+.syntax-check-button, .submit-dag-button {
     padding: 0.5rem;
     background-color: #28a745;
     color: white;
@@ -275,7 +334,7 @@ textarea {
     align-self: flex-end;
 }
 
-.syntax-check-button:hover {
+.syntax-check-button:hover, .submit-dag-button:hover {
     background-color: #218838;
 }
 
@@ -283,10 +342,9 @@ textarea {
     border: 2px solid #f3f3f3;
     border-top: 2px solid #007bff;
     border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
-    animation: spin 1s linear infinite;
+    width: 14px;
+    height: 14px;
+    animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -304,6 +362,4 @@ textarea {
     width: 100%;
     max-width: 770px;
 }
-
 </style>
-
